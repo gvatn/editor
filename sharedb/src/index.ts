@@ -5,7 +5,7 @@ import * as WebSocketJSONStream from '@teamwork/websocket-json-stream';
 import * as ShareDB from 'sharedb';
 import * as ShareDBMongo from 'sharedb-mongo';
 
-const db = ShareDBMongo('mongodb://localhost:27017/docs', {
+const db = ShareDBMongo('mongodb://root:example@localhost:27017', {
     useUnifiedTopology: true
 });
 
