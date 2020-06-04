@@ -1,12 +1,26 @@
 import Head from 'next/head'
 
 import { useRouter } from 'next/router';
-import { useContext, useState, useEffect } from 'react';
+import { useContext, useState, useEffect, useMemo } from 'react';
 import ConnectionCtx, { useConn, useDoc } from '../../components/ConnectionCtx';
 
-function Doc({doc}) {
+import { createEditor } from 'slate';
+import { Slate, Editable, withReact } from 'slate-react'
+
+function Doc({ doc }) {
   console.log("Got doc", doc);
-  return <div>Doc</div>;
+  const editor = useMemo(() => withReact(createEditor()), []);
+  const [value, setValue] = useState<any>([
+    {
+      type: 'paragraph',
+      children: [{ text: 'A line of text in a paragraph.' }],
+    }
+  ]);
+  return (<div className="slate-test">
+    <Slate editor={editor} value={value} onChange={(newValue) => setValue(newValue)}>
+      <Editable spellCheck={false} />
+    </Slate>
+  </div>);
 }
 
 export default function DocPage() {
@@ -18,7 +32,7 @@ export default function DocPage() {
 
   let inner;
   if (doc !== null) {
-    inner = <Doc doc={doc}/>;
+    inner = <Doc doc={doc} />;
   } else {
     inner = <div>...</div>;
   }
