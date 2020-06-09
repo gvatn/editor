@@ -8,7 +8,10 @@
     "start": "next start"
   },
   "dependencies": {
+    "immutable": "^4.0.0-rc.12",
     "next": "9.4.4",
+    "ot-json1": "^0.2.4",
+    "ot-json1-immutable": "^1.2.2",
     "react": "16.13.1",
     "react-dom": "16.13.1",
     "reconnecting-websocket": "^4.4.0",
@@ -19,6 +22,7 @@
   "devDependencies": {
     "@types/node": "^14.0.6",
     "@types/react": "^16.9.35",
+    "next-transpile-modules": "^3.3.0",
     "typescript": "^3.9.3"
   }
 }

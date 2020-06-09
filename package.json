@@ -1,0 +1,14 @@
+{
+  "name": "cl",
+  "version": "0.0.1",
+  "author": "gvatn <gudmund.vatn@gmail.com>",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "next-dev": "yarn --cwd packages/next dev",
+    "backend-dev": "yarn --cwd packages/sharedb dev"
+  },
+  "workspaces": [
+    "packages/*"
+  ]
+}
