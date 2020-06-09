@@ -4,6 +4,9 @@ import ReconnectingWebSocket from 'reconnecting-websocket';
 
 import sharedb from 'sharedb/lib/client';
 
+import * as OtSlate from 'ot-slate';
+
+sharedb.types.register(OtSlate.type);
 
 class Connection {
     connInner: null | any;
@@ -56,6 +59,7 @@ function useDoc(key) {
     // the above doc state when document is ready
     // Being contained in an object, changes should not
     // trigger render
+    // todo: useMemo?
     const [localDoc, setLocalDoc] = useState({
         instance: null
     });
@@ -71,15 +75,17 @@ function useDoc(key) {
     localDoc.instance = conn.get('docs', key);
     console.log("Got instance", localDoc.instance);
     setLocalDoc(localDoc); // Not sure if this is necessary
-    localDoc.instance.fetch((err) => {
+    localDoc.instance.subscribe((err) => {
         if (err) {
             console.error(err);
             return doc;
         }
-        console.log("Fetched", localDoc.instance);
+        console.log("Subscribed", localDoc.instance);
         if (localDoc.instance.type === null) {
-            debugger;
-            localDoc.instance.create({ items: [] }, function () {
+            localDoc.instance.create([{
+                type: 'paragraph',
+                children: [{ text: 'A line of text in a paragraph.' }],
+            }], 'ot-slate', function () {
                 console.log("Created doc");
                 setDoc(localDoc.instance);
             });
@@ -87,6 +93,9 @@ function useDoc(key) {
             console.log("Already created");
             setDoc(localDoc.instance);
         }
+    });
+    localDoc.instance.on('op', (op, source) => {
+        console.log("On op", localDoc.instance, op, source);
     });
     return doc;
 }

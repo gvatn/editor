@@ -5,8 +5,8 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "next-dev": "yarn --cwd packages/next dev",
-    "backend-dev": "yarn --cwd packages/sharedb dev"
+    "next": "yarn workspace next",
+    "be": "yarn workspace sharedb-server"
   },
   "workspaces": [
     "packages/*"

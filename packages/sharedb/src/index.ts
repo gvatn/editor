@@ -4,6 +4,11 @@ import * as WebSocket from 'ws';
 import * as WebSocketJSONStream from '@teamwork/websocket-json-stream';
 import * as ShareDB from 'sharedb';
 import * as ShareDBMongo from 'sharedb-mongo';
+import * as OtSlate from 'ot-slate';
+
+console.log("Ot slate", OtSlate);
+
+ShareDB.types.register(OtSlate.type);
 
 const db = ShareDBMongo('mongodb://root:example@localhost:27017', {
     useUnifiedTopology: true
