@@ -94,9 +94,6 @@ function useDoc(key) {
             setDoc(localDoc.instance);
         }
     });
-    localDoc.instance.on('op', (op, source) => {
-        console.log("On op", localDoc.instance, op, source);
-    });
     return doc;
 }
 
