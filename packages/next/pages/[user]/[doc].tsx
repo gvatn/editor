@@ -31,15 +31,24 @@ const textChildrenPath = (path) => {
   return p;
 };
 
+// Entry path inside a children array
+const entryPath = (path) => {
+  let p = [];
+  for (let i = 0; i < path.length; i++) {
+    if (i === path.length - 1) {
+      p.push(path[i]);
+    } else {
+      p.push(path[i], 'children');
+    }
+  }
+  return p;
+};
+
 // Children array of the given path
 const childrenPath = (path) => {
-  let p = [path[0]];
-  for (let i = 1; i < path.length; i++) {
-    if (i === path.length - 1) {
-      p.push('children');
-    } else {
-      p.push('children', path[i]);
-    }
+  let p = [];
+  for (let i = 0; i < path.length; i++) {
+    p.push(path[i], 'children');
   }
   return p;
 };
@@ -76,8 +85,8 @@ const withCustom = (doc, editor) => {
             children: []
           };
           const baseChildren = childrenPath(op.path);
-          const fromNode = baseChildren.concat(['children', op.position]);
-          const toBase = baseChildren.slice(0, baseChildren.length - 1).concat([op.path[op.path.length - 1] + 1]);
+          const fromNode = baseChildren.concat([op.position]);
+          const toBase = baseChildren.slice(0, baseChildren.length - 2).concat([op.path[op.path.length - 1] + 1]);
           const toNode = toBase.concat(['children', 0]);
           // todo: Not sure if 'target' property needs to be handled
           shareOps.push(
@@ -85,6 +94,30 @@ const withCustom = (doc, editor) => {
             json1.moveOp(fromNode, toNode)
           );
           //console.log("From to", fromNode, toNode);
+        }
+      } else if (op.type === 'merge_node') {
+        // Determine type
+        const node = Node.get(editor, op.path);
+        console.log("Node", node);
+        if (Text.isText(node)) {
+          // In the case of text, assuming previous child is another text node,
+          // append this text
+          const fromBase = childrenPath(op.path.slice(0, op.path.length - 1));
+          const rmPath = fromBase.concat([op.path[op.path.length - 1]]);
+          const appendAtPath = fromBase.concat([op.path[op.path.length - 1] - 1, 'text']);
+          shareOps.push(
+            json1.removeOp(rmPath),
+            json1.editOp(appendAtPath, 'text-unicode', [op.position, node.text])
+          );
+        } else {
+          // Merge children of this node with the previous node's children from
+          // the given position
+          const fromBase = childrenPath(op.path);
+          const toBase = fromBase.slice(0, fromBase.length - 2).concat([op.path[op.path.length - 1] - 1, 'children']);
+          for (let childIndex = 0; childIndex < node.children.length; childIndex++) {
+            shareOps.push(json1.moveOp(fromBase.concat([childIndex]), toBase.concat(op.position + childIndex)));
+          }
+          shareOps.push(json1.removeOp(fromBase.slice(0, fromBase.length - 1)));
         }
       }
       if (shareOps.length > 0) {
