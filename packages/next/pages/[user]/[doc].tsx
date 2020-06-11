@@ -53,82 +53,119 @@ const childrenPath = (path) => {
   return p;
 };
 
-const withCustom = (doc, editor) => {
-  const { apply } = editor;
-  editor.apply = (op: any) => {
+/**
+ * Transforms slate ops to sharedb ops
+ */
+class SlateAdapter {
+  constructor(public editor, public doc) { }
+
+  handle(op) {
     console.log("Op", op);
     if (op.type !== "set_selection") {
       let shareOps = [];
       if (op.type === "insert_text") {
-        shareOps.push(json1.editOp(jsonTextPath(op.path), 'text-unicode', [op.offset, op.text]));
+        this.insertText(op, shareOps);
       } else if (op.type === "remove_text") {
-        shareOps.push(json1.editOp(jsonTextPath(op.path), 'text-unicode', [op.offset, {d: op.text.length}]));
+        this.removeText(op, shareOps);
       } else if (op.type === "split_node") {
-        // Determine type
-        const node = Node.get(editor, op.path);
-        console.log("Node", node);
-        if (Text.isText(node)) {
-          // In the case of text, split the text
-          const textNext = node.text.substring(op.position);
-          const parentNode = Node.parent(editor, op.path);
-          console.log("Text next", textNext, parentNode);
-          const nextTextPath = textChildrenPath(op.path).concat([op.path[op.path.length - 1] + 1]);
-          console.log("Next text path", nextTextPath);
-          shareOps.push(
-            json1.editOp(jsonTextPath(op.path), 'text-unicode', [op.position, {d: textNext.length}]),
-            json1.insertOp(nextTextPath, {text: textNext})
-          );
-        } else {
-          // Else split in the child components
-          const toInsertNode = {
-            ...op.properties,
-            children: []
-          };
-          const baseChildren = childrenPath(op.path);
-          const fromNode = baseChildren.concat([op.position]);
-          const toBase = baseChildren.slice(0, baseChildren.length - 2).concat([op.path[op.path.length - 1] + 1]);
-          const toNode = toBase.concat(['children', 0]);
-          // todo: Not sure if 'target' property needs to be handled
-          shareOps.push(
-            json1.insertOp(toBase, toInsertNode),
-            json1.moveOp(fromNode, toNode)
-          );
-          //console.log("From to", fromNode, toNode);
-        }
+        this.splitNode(op, shareOps);
       } else if (op.type === 'merge_node') {
-        // Determine type
-        const node = Node.get(editor, op.path);
-        console.log("Node", node);
-        if (Text.isText(node)) {
-          // In the case of text, assuming previous child is another text node,
-          // append this text
-          const fromBase = childrenPath(op.path.slice(0, op.path.length - 1));
-          const rmPath = fromBase.concat([op.path[op.path.length - 1]]);
-          const appendAtPath = fromBase.concat([op.path[op.path.length - 1] - 1, 'text']);
-          shareOps.push(
-            json1.removeOp(rmPath),
-            json1.editOp(appendAtPath, 'text-unicode', [op.position, node.text])
-          );
-        } else {
-          // Merge children of this node with the previous node's children from
-          // the given position
-          const fromBase = childrenPath(op.path);
-          const toBase = fromBase.slice(0, fromBase.length - 2).concat([op.path[op.path.length - 1] - 1, 'children']);
-          for (let childIndex = 0; childIndex < node.children.length; childIndex++) {
-            shareOps.push(json1.moveOp(fromBase.concat([childIndex]), toBase.concat(op.position + childIndex)));
-          }
-          shareOps.push(json1.removeOp(fromBase.slice(0, fromBase.length - 1)));
-        }
+        this.mergeNode(op, shareOps);
       }
       if (shareOps.length > 0) {
         for (const shareOp of shareOps) {
-          console.log("Submitting", shareOp);
-          doc.submitOp(shareOp);
+          if (typeof this.doc.data === 'undefined') {
+            debugger;
+          }
+          console.log("Stringified", JSON.stringify(this.doc.data), this.doc);
+          const docData = JSON.parse(JSON.stringify(this.doc.data));
+          console.log("Submitting", shareOp, docData);
+          this.doc.submitOp(shareOp);
         }
       }
     }
+  }
+
+  insertText(op, shareOps) {
+    shareOps.push(json1.editOp(jsonTextPath(op.path), 'text-unicode', [op.offset, op.text]));
+  }
+
+  removeText(op, shareOps) {
+    shareOps.push(json1.editOp(jsonTextPath(op.path), 'text-unicode', [op.offset, { d: op.text.length }]));
+  }
+
+  splitNode(op, shareOps) {
+    // Determine type
+    const node = Node.get(this.editor, op.path);
+    console.log("Node", node);
+    if (Text.isText(node)) {
+      // In the case of text, split the text
+      const textNext = node.text.substring(op.position);
+      const parentNode = Node.parent(this.editor, op.path);
+      console.log("Text next", textNext, parentNode);
+      const nextTextPath = textChildrenPath(op.path).concat([op.path[op.path.length - 1] + 1]);
+      console.log("Next text path", nextTextPath);
+      shareOps.push(
+        json1.editOp(jsonTextPath(op.path), 'text-unicode', [op.position, { d: textNext.length }]),
+        json1.insertOp(nextTextPath, { text: textNext })
+      );
+      return;
+    } else {
+      // Else split in the child components
+      const toInsertNode = {
+        ...op.properties,
+        children: []
+      };
+      const baseChildren = childrenPath(op.path);
+      const fromNode = baseChildren.concat([op.position]);
+      const toBase = baseChildren.slice(0, baseChildren.length - 2).concat([op.path[op.path.length - 1] + 1]);
+      const toNode = toBase.concat(['children', 0]);
+      // todo: Not sure if 'target' property needs to be handled
+      shareOps.push(
+        json1.insertOp(toBase, toInsertNode),
+        json1.moveOp(fromNode, toNode)
+      );
+      return;
+      //console.log("From to", fromNode, toNode);
+    }
+  }
+
+  mergeNode(op, shareOps) {
+    // Determine type
+    const node = Node.get(this.editor, op.path);
+    console.log("Node", node);
+    if (Text.isText(node)) {
+      // In the case of text, assuming previous child is another text node,
+      // append this text
+      const fromBase = childrenPath(op.path.slice(0, op.path.length - 1));
+      const rmPath = fromBase.concat([op.path[op.path.length - 1]]);
+      const appendAtPath = fromBase.concat([op.path[op.path.length - 1] - 1, 'text']);
+      shareOps.push(
+        json1.removeOp(rmPath),
+        json1.editOp(appendAtPath, 'text-unicode', [op.position, node.text])
+      );
+      return;
+    } else {
+      // Merge children of this node with the previous node's children from
+      // the given position
+      const fromBase = childrenPath(op.path);
+      const toBase = fromBase.slice(0, fromBase.length - 2).concat([op.path[op.path.length - 1] - 1, 'children']);
+      for (let childIndex = 0; childIndex < node.children.length; childIndex++) {
+        shareOps.push(json1.moveOp(fromBase.concat([childIndex]), toBase.concat(op.position + childIndex)));
+      }
+      shareOps.push(json1.removeOp(fromBase.slice(0, fromBase.length - 1)));
+      return;
+    }
+  }
+}
+
+const withCustom = (doc, editor) => {
+  const { apply } = editor;
+  const adapter = new SlateAdapter(editor, doc);
+  editor.apply = (op: any) => {
+    adapter.handle(op);
     apply(op);
-        console.log("json", JSON.parse(JSON.stringify(editor.children)));
+    console.log("json", JSON.parse(JSON.stringify(editor.children)));
   };
   return editor;
 };
