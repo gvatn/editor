@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import { useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import ConnectionCtx, { useConn, useDoc } from '../../components/ConnectionCtx';
 
-import { createEditor, Node, Text } from 'slate';
+import { createEditor, Node, Text, Transforms } from 'slate';
 import { Slate, Editable, withReact } from 'slate-react'
 
 import { json1 } from 'ot-slate';
@@ -71,13 +71,14 @@ class SlateAdapter {
         this.splitNode(op, shareOps);
       } else if (op.type === 'merge_node') {
         this.mergeNode(op, shareOps);
+      } else if (op.type === 'set_node') {
+        this.setNode(op, shareOps);
       }
       if (shareOps.length > 0) {
         for (const shareOp of shareOps) {
           if (typeof this.doc.data === 'undefined') {
             debugger;
           }
-          console.log("Stringified", JSON.stringify(this.doc.data), this.doc);
           const docData = JSON.parse(JSON.stringify(this.doc.data));
           console.log("Submitting", shareOp, docData);
           this.doc.submitOp(shareOp);
@@ -94,17 +95,25 @@ class SlateAdapter {
     shareOps.push(json1.editOp(jsonTextPath(op.path), 'text-unicode', [op.offset, { d: op.text.length }]));
   }
 
+  setNode(op, shareOps) {
+    const shareNode = entryPath(op.path);
+    for (const prop in op.newProperties) {
+      if (op.properties[prop] === undefined) {
+        shareOps.push(json1.insertOp(shareNode.concat([prop]), op.newProperties[prop]));
+      } else {
+        shareOps.push(json1.replaceOp(shareNode.concat([prop]), op.properties[prop], op.newProperties[prop]));
+      }
+    }
+  }
+
   splitNode(op, shareOps) {
     // Determine type
     const node = Node.get(this.editor, op.path);
-    console.log("Node", node);
     if (Text.isText(node)) {
       // In the case of text, split the text
       const textNext = node.text.substring(op.position);
       const parentNode = Node.parent(this.editor, op.path);
-      console.log("Text next", textNext, parentNode);
       const nextTextPath = textChildrenPath(op.path).concat([op.path[op.path.length - 1] + 1]);
-      console.log("Next text path", nextTextPath);
       shareOps.push(
         json1.editOp(jsonTextPath(op.path), 'text-unicode', [op.position, { d: textNext.length }]),
         json1.insertOp(nextTextPath, { text: textNext })
@@ -133,7 +142,6 @@ class SlateAdapter {
   mergeNode(op, shareOps) {
     // Determine type
     const node = Node.get(this.editor, op.path);
-    console.log("Node", node);
     if (Text.isText(node)) {
       // In the case of text, assuming previous child is another text node,
       // append this text
@@ -150,6 +158,10 @@ class SlateAdapter {
       // the given position
       const fromBase = childrenPath(op.path);
       const toBase = fromBase.slice(0, fromBase.length - 2).concat([op.path[op.path.length - 1] - 1, 'children']);
+
+      // todo: Figure out why the next line causes doc.data to be undefined on next op
+      //let shareOps = [];
+
       for (let childIndex = 0; childIndex < node.children.length; childIndex++) {
         shareOps.push(json1.moveOp(fromBase.concat([childIndex]), toBase.concat(op.position + childIndex)));
       }
@@ -165,13 +177,21 @@ const withCustom = (doc, editor) => {
   editor.apply = (op: any) => {
     adapter.handle(op);
     apply(op);
-    console.log("json", JSON.parse(JSON.stringify(editor.children)));
+    console.log("document json", JSON.parse(JSON.stringify(editor.children)));
   };
   return editor;
 };
 
+function Leaf(props) {
+  return (
+    <span
+      {...props.attributes}
+      style={{ fontWeight: props.leaf.bold ? 'bold' : 'normal' }}
+    >{props.children}</span>
+  )
+}
+
 function Doc({ doc }) {
-  console.log("Got doc", doc);
   const editor = useMemo(() => withCustom(doc, withReact(createEditor())), []);
   const [value, setValue] = useState<any>(doc.data);
   useEffect(() => {
@@ -188,15 +208,38 @@ function Doc({ doc }) {
   }, []);
 
   const onChange = useCallback((newValue) => {
-    console.log(newValue);
+    console.log("New slate-doc", newValue);
     setValue(newValue);
   }, []);
 
-  return (<div className="slate-test">
+  const renderLeaf = useCallback((props) => {
+    return <Leaf {...props} />;
+  }, []);
+
+  const onKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!event.ctrlKey) {
+      return;
+    }
+    switch (event.key) {
+      case 'b': {
+        event.preventDefault();
+        Transforms.setNodes(editor, { bold: true }, {
+          match: n => Text.isText(n),
+          split: true
+        })
+        break;
+      }
+    }
+  }, []);
+
+  return (
     <Slate editor={editor} value={value} onChange={onChange}>
-      <Editable spellCheck={false} />
+      <Editable
+        spellCheck={false}
+        renderLeaf={renderLeaf}
+        onKeyDown={onKeyDown} />
     </Slate>
-  </div>);
+  );
 }
 
 export default function DocPage() {
