@@ -73,6 +73,8 @@ class SlateAdapter {
         this.mergeNode(op, shareOps);
       } else if (op.type === 'set_node') {
         this.setNode(op, shareOps);
+      } else if (op.type === 'insert_node') {
+        this.insertNode(op, shareOps);
       }
       if (shareOps.length > 0) {
         for (const shareOp of shareOps) {
@@ -93,6 +95,11 @@ class SlateAdapter {
 
   removeText(op, shareOps) {
     shareOps.push(json1.editOp(jsonTextPath(op.path), 'text-unicode', [op.offset, { d: op.text.length }]));
+  }
+
+  insertNode(op, shareOps) {
+    const newNode = entryPath(op.path);
+    shareOps.push(json1.insertOp(newNode, op.node));
   }
 
   setNode(op, shareOps) {
@@ -177,7 +184,6 @@ const withCustom = (doc, editor) => {
   editor.apply = (op: any) => {
     adapter.handle(op);
     apply(op);
-    console.log("document json", JSON.parse(JSON.stringify(editor.children)));
   };
   return editor;
 };
@@ -188,7 +194,32 @@ function Leaf(props) {
       {...props.attributes}
       style={{ fontWeight: props.leaf.bold ? 'bold' : 'normal' }}
     >{props.children}</span>
-  )
+  );
+}
+
+function renderLeaf(props) {
+  return <Leaf {...props} />;
+}
+
+function DefaultElement(props) {
+  return (
+    <p {...props.attributes}>{props.children}</p>
+  );
+}
+
+function Block(props) {
+  return (
+    <div style={{backgroundColor: "#fc0"}} {...props.attributes}>{props.children}</div>
+  );
+}
+
+function renderElement(props) {
+  switch (props.element.type) {
+    case 'paragraph':
+      return <DefaultElement {...props}/>;
+    case 'block':
+      return <Block {...props}/>;
+  }
 }
 
 function Doc({ doc }) {
@@ -212,10 +243,6 @@ function Doc({ doc }) {
     setValue(newValue);
   }, []);
 
-  const renderLeaf = useCallback((props) => {
-    return <Leaf {...props} />;
-  }, []);
-
   const onKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     if (!event.ctrlKey) {
       return;
@@ -226,7 +253,17 @@ function Doc({ doc }) {
         Transforms.setNodes(editor, { bold: true }, {
           match: n => Text.isText(n),
           split: true
-        })
+        });
+        break;
+      }
+      case '+': {
+        event.preventDefault();
+        Transforms.insertNodes(editor, {
+          type: 'block',
+          children: [{
+            text: ''
+          }]
+        });
         break;
       }
     }
@@ -237,6 +274,7 @@ function Doc({ doc }) {
       <Editable
         spellCheck={false}
         renderLeaf={renderLeaf}
+        renderElement={renderElement}
         onKeyDown={onKeyDown} />
     </Slate>
   );
