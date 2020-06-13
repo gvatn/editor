@@ -22,6 +22,7 @@ class Connection {
         if (this.connInner !== null) {
             return Promise.resolve(this.connInner);
         }
+        // Todo: Server side `WebSocket` class?
         const socket = new ReconnectingWebSocket('ws://localhost:8080');
         this.connInner = new sharedb.Connection(socket);
         return Promise.resolve(this.connInner);

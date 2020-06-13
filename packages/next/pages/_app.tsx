@@ -2,13 +2,21 @@
 
 import ConnectionCtx, { Connection } from '../components/ConnectionCtx';
 
+import { Provider as AuthProvider } from 'next-auth/client';
+import Layout from '../components/Layout';
+
 const conn = new Connection();
 
 function MyApp({ Component, pageProps }) {
+    const { session } = pageProps;
     return (
-        <ConnectionCtx.Provider value={conn}>
-            <Component {...pageProps} />
-        </ConnectionCtx.Provider>
+        <AuthProvider session={session}>
+            <ConnectionCtx.Provider value={conn}>
+                <Layout>
+                    <Component {...pageProps} />
+                </Layout>
+            </ConnectionCtx.Provider>
+        </AuthProvider>
     );
 }
 

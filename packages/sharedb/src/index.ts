@@ -10,7 +10,7 @@ console.log("Ot slate", OtSlate);
 
 ShareDB.types.register(OtSlate.type);
 
-const db = ShareDBMongo('mongodb://root:example@localhost:27017', {
+const db = ShareDBMongo('mongodb://docsUser:123@localhost:27017/docs', {
     useUnifiedTopology: true
 });
 

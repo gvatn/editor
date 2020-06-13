@@ -9,16 +9,18 @@
   },
   "dependencies": {
     "immutable": "^4.0.0-rc.12",
+    "mongodb": "^3.5.9",
     "next": "9.4.4",
+    "next-auth": "^2.0.0-beta.71",
     "ot-json1": "^0.2.4",
     "ot-json1-immutable": "^1.2.2",
+    "ot-slate": "0.0.1",
     "react": "16.13.1",
     "react-dom": "16.13.1",
     "reconnecting-websocket": "^4.4.0",
     "sharedb": "^1.3.4",
     "slate": "^0.58.3",
-    "slate-react": "^0.58.3",
-    "ot-slate": "0.0.1"
+    "slate-react": "^0.58.3"
   },
   "devDependencies": {
     "@types/node": "^14.0.6",
