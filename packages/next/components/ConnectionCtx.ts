@@ -53,6 +53,20 @@ function useConn() {
     return [conn, requireConn];
 }
 
+function docInit() {
+    return ({
+        version: 1,
+        title: [{
+            type: 'main_title',
+            children: [{ text: 'Heading' }],
+        }],
+        doc: [{
+            type: 'paragraph',
+            children: [{ text: 'A line of text in a paragraph.' }],
+        }]
+    });
+}
+
 function useDoc(key) {
     const [doc, setDoc] = useState(null);
     // While possibly creating the initial document,
@@ -83,10 +97,7 @@ function useDoc(key) {
         }
         console.log("Subscribed", localDoc.instance);
         if (localDoc.instance.type === null) {
-            localDoc.instance.create([{
-                type: 'paragraph',
-                children: [{ text: 'A line of text in a paragraph.' }],
-            }], 'ot-slate', function () {
+            localDoc.instance.create(docInit(), 'ot-slate', function () {
                 console.log("Created doc");
                 setDoc(localDoc.instance);
             });

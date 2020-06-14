@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@types/mongodb": "^3.5.20",
     "immutable": "^4.0.0-rc.12",
     "mongodb": "^3.5.9",
     "next": "9.4.4",
