@@ -25,6 +25,10 @@ export default class SlateAdapter {
         this.setNode(op, shareOps);
       } else if (op.type === 'insert_node') {
         this.insertNode(op, shareOps);
+      } else if (op.type === 'move_node') {
+        this.moveNode(op, shareOps);
+      } else if (op.type === 'remove_node') {
+        this.removeNode(op, shareOps);
       }
       if (shareOps.length > 0) {
         for (const shareOp of shareOps) {
@@ -33,7 +37,12 @@ export default class SlateAdapter {
           }
           const docData = JSON.parse(JSON.stringify(this.doc.data));
           console.log("Submitting", shareOp, docData);
-          this.doc.submitOp(shareOp);
+          this.doc.submitOp(shareOp, null, (err) => {
+            if (err) {
+              console.log("submitOp callback", err, shareOp);
+              debugger;
+            }
+          });
         }
       }
     }
@@ -45,6 +54,27 @@ export default class SlateAdapter {
 
   removeText(op, shareOps) {
     shareOps.push(json1.editOp(this.jsonTextPath(op.path), 'text-unicode', [op.offset, { d: op.text.length }]));
+  }
+
+  moveNode(op, shareOps) {
+    // Json1 and slate differ in move semantics.
+    // Slate's destination is based on the document
+    // before the pick-up of the from-item, while json1's is
+    // based on the document after the pick-up. And
+    // when the pick-up is an index before the json1 path,
+    // the array will be adjusted and the destination needs
+    // to take this into account.
+    if (op.path.length <= op.newPath.length && op.path[op.path.length - 1] <= op.newPath[op.path.length - 1]) {
+      let adjustedTo = op.newPath.slice();
+      adjustedTo[op.path.length - 1]--;
+      shareOps.push(json1.moveOp(this.entryPath(op.path), this.entryPath(adjustedTo)));
+    } else {
+      shareOps.push(json1.moveOp(this.entryPath(op.path), this.entryPath(op.newPath)));
+    }
+  }
+
+  removeNode(op, shareOps) {
+    shareOps.push(json1.removeOp(this.entryPath(op.path)));
   }
 
   insertNode(op, shareOps) {

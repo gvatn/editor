@@ -4,19 +4,22 @@ import { useRouter } from 'next/router';
 import { useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import ConnectionCtx, { useConn, useDoc } from '../../components/ConnectionCtx';
 
-import { createEditor, Node, Text, Transforms } from 'slate';
+import { createEditor, Node, Text, Transforms, Editor, Operation } from 'slate';
 import { Slate, Editable, withReact } from 'slate-react'
 import SlateAdapter from '../../components/SlateAdapter';
 
 
 
 const withCustom = (prefix, doc, editor) => {
-  const { apply } = editor;
+  const { apply, isElement } = editor;
   const adapter = new SlateAdapter(editor, doc, prefix);
   editor.apply = (op: any) => {
     adapter.handle(op);
     apply(op);
   };
+  editor.isElement = (n: any) => {
+    return n.type === 'list' || n.type === 'list_item';
+  }
   return editor;
 };
 
@@ -51,12 +54,30 @@ function MainTitle(props) {
   );
 }
 
+function List(props) {
+  return (
+    <ul {...props.attributes}>
+      {props.children}
+    </ul>
+  );
+}
+
+function ListItem(props) {
+  return (
+    <li {...props.attributes}>{props.children}</li>
+  );
+}
+
 function renderElement(props) {
   switch (props.element.type) {
     case 'paragraph':
       return <DefaultElement {...props} />;
     case 'block':
       return <Block {...props} />;
+    case 'list':
+      return <List {...props} />;
+    case 'list_item':
+      return <ListItem {...props} />;
   }
 }
 
@@ -122,27 +143,54 @@ function Doc({ doc }) {
   }, []);
 
   const onKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (!event.ctrlKey) {
-      return;
-    }
-    switch (event.key) {
-      case 'b': {
-        event.preventDefault();
-        Transforms.setNodes(editor, { bold: true }, {
-          match: n => Text.isText(n),
-          split: true
-        });
-        break;
+    if (event.ctrlKey) {
+      switch (event.key) {
+        case 'b': {
+          event.preventDefault();
+          Transforms.setNodes(editor, { bold: true }, {
+            match: n => Text.isText(n),
+            split: true
+          });
+          break;
+        }
+        case '+': {
+          event.preventDefault();
+          Transforms.insertNodes(editor, {
+            type: 'block',
+            children: [{
+              text: ''
+            }]
+          });
+          break;
+        }
       }
-      case '+': {
-        event.preventDefault();
-        Transforms.insertNodes(editor, {
-          type: 'block',
-          children: [{
-            text: ''
-          }]
+    } else {
+      if (event.which === 9) {
+        // Tab
+        // Move the first non-text node into new list->list_item nodes
+        // Find first non-text node
+        const [, nonTextPath] = Editor.above(editor, {
+          match: (n) => !Text.isText(n)
         });
-        break;
+        const insertPath = nonTextPath.slice(0, nonTextPath.length - 1).concat([nonTextPath[nonTextPath.length - 1] + 1]);
+        Editor.withoutNormalizing(editor, () => {
+          Transforms.insertNodes(editor, {
+            type: 'list',
+            children: [{
+              type: 'list_item',
+              children: []
+            }]
+          }, {
+            at: insertPath
+          });
+          Transforms.moveNodes(editor, {
+            at: nonTextPath,
+            to: insertPath.concat([0, 0])
+          });
+        });
+        event.preventDefault();
+      } else if (event.which === 13) {
+        event.preventDefault();
       }
     }
   }, []);

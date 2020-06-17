@@ -4514,15 +4514,17 @@ ot-json0@^1.0.1:
   resolved "https://registry.yarnpkg.com/ot-json0/-/ot-json0-1.1.0.tgz#f5edeff162673b62f0f136bb64724c40ac5e590d"
   integrity sha512-wf5fci7GGpMYRDnbbdIFQymvhsbFACMHtxjivQo5KgvAHlxekyfJ9aPsRr6YfFQthQkk4bmsl5yESrZwC/oMYQ==
 
-ot-json1-immutable@^1.2.2:
-  version "1.2.2"
-  resolved "https://registry.yarnpkg.com/ot-json1-immutable/-/ot-json1-immutable-1.2.2.tgz#56bf033a47471cec54b63dcb96b3f71c703eaa8c"
-  integrity sha512-HVx/BU/s0MdyLmQUcBNqkwd9DJ+lP3V1RQpBSEh+7idPWVpxxDG1PzfMDZtR7R9Zbq/awCRczrUZm//lwU298A==
-
 ot-json1@^0.2.4:
   version "0.2.4"
   resolved "https://registry.yarnpkg.com/ot-json1/-/ot-json1-0.2.4.tgz#2e524eb5c59d5f9cb48d95edc0c54ef40e12d3a3"
   integrity sha512-nVZPpPZDBwZo2VrmZzFX3PTusEX0E1esbqMqo8sM9tRDzMFgRMQLssSmxG1nKL43ycbECJywepAAWfsRzUWFUQ==
+  dependencies:
+    ot-text-unicode "^3.0.0"
+
+ot-json1@^0.3:
+  version "0.3.0"
+  resolved "https://registry.yarnpkg.com/ot-json1/-/ot-json1-0.3.0.tgz#7676914fa3377316d6318fd7251a9a664c24d1d4"
+  integrity sha512-hIlO7nq4KjwOrJLQHXJvn1Vey/bhnI0IdWdtCrnHUrOxAtk2QlOKTJK2vGksWLeKALMAqkGswzPe0jb/I3logA==
   dependencies:
     ot-text-unicode "^3.0.0"
 
