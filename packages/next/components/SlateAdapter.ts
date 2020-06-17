@@ -56,21 +56,39 @@ export default class SlateAdapter {
     shareOps.push(json1.editOp(this.jsonTextPath(op.path), 'text-unicode', [op.offset, { d: op.text.length }]));
   }
 
-  moveNode(op, shareOps) {
-    // Json1 and slate differ in move semantics.
-    // Slate's destination is based on the document
-    // before the pick-up of the from-item, while json1's is
-    // based on the document after the pick-up. And
-    // when the pick-up is an index before the json1 path,
-    // the array will be adjusted and the destination needs
-    // to take this into account.
-    if (op.path.length <= op.newPath.length && op.path[op.path.length - 1] <= op.newPath[op.path.length - 1]) {
-      let adjustedTo = op.newPath.slice();
-      adjustedTo[op.path.length - 1]--;
-      shareOps.push(json1.moveOp(this.entryPath(op.path), this.entryPath(adjustedTo)));
-    } else {
-      shareOps.push(json1.moveOp(this.entryPath(op.path), this.entryPath(op.newPath)));
+  /**
+   * Json1 and slate differ in move path specifications.
+   * Slate's destination is based on the document
+   * before the pick-up of the from-item, while json1's is
+   * based on the document after the pick-up. And
+   * when the pick-up is an index before the json1 path,
+   * the array will be adjusted and the destination needs
+   * to take this into account.
+   * @param from
+   * @param to 
+   */
+  adaptMoveDestination(from: number[], to: number[]): number[] {
+    if (from.length <= to.length) {
+      for (let i = 0; i < from.length - 1; i++) {
+        if (from[i] !== to[i]) {
+          // Then last from-element is not in to-path, no adaptation necessary
+          return to;
+        }
+      }
+      // From and to paths are equal up to from's last element
+      // If the last from-element has an index < than the to-path's,
+      // we need to adjust to-path
+      if (from[from.length - 1] < to[from.length - 1]) {
+        let adjustedTo = to.slice();
+        adjustedTo[from.length - 1]--;
+        return adjustedTo;
+      }
     }
+    return to;
+  }
+
+  moveNode(op, shareOps) {
+    shareOps.push(json1.moveOp(this.entryPath(op.path), this.entryPath(this.adaptMoveDestination(op.path, op.newPath))));
   }
 
   removeNode(op, shareOps) {
