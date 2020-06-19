@@ -130,13 +130,26 @@ export default class SlateAdapter {
         children: []
       };
       const baseChildren = this.childrenPath(op.path);
-      const fromNode = baseChildren.concat([op.position]);
       const toBase = baseChildren.slice(0, baseChildren.length - 2).concat([op.path[op.path.length - 1] + 1]);
-      const toNode = toBase.concat(['children', 0]);
-      // todo: Not sure if 'target' property needs to be handled
+      const numToMove = node.children.length - op.position;
+      // To optimize and simplify json1 operations, we craft a combined operation for
+      // moving the children to the new item
+      const pickups = [];
+      const drops = [];
+      for (let i = 0; i < numToMove; i++) {
+        // (todo: Not sure if I can nest another level of traversal + ops)
+        pickups.push([op.position + i, { p: i }])
+        drops.push([i, { d: i }]);
+      }
+      let moveOps = (baseChildren as any).slice(0, baseChildren.length - 2).concat(
+        [[op.path[op.path.length - 1], 'children', pickups]],
+        [[op.path[op.path.length - 1] + 1, 'children', drops]]
+      );
+      // todo: Not sure if 'target' property needs to be handled,
+      // saw a comment it was deprecated
       shareOps.push(
         json1.insertOp(toBase, toInsertNode),
-        json1.moveOp(fromNode, toNode)
+        moveOps
       );
       return;
       //console.log("From to", fromNode, toNode);
@@ -160,16 +173,20 @@ export default class SlateAdapter {
     } else {
       // Merge children of this node with the previous node's children from
       // the given position
-      const fromBase = this.childrenPath(op.path);
-      const toBase = fromBase.slice(0, fromBase.length - 2).concat([op.path[op.path.length - 1] - 1, 'children']);
-
-      // todo: Figure out why the next line causes doc.data to be undefined on next op
-      //let shareOps = [];
-
-      for (let childIndex = 0; childIndex < node.children.length; childIndex++) {
-        shareOps.push(json1.moveOp(fromBase.concat([childIndex]), toBase.concat(op.position + childIndex)));
+      const targetPath = op.path.slice(0, op.path.length - 1).concat([op.position]);
+      const targetNode = Node.get(this.editor, targetPath);
+      const fromBase = this.entryPath(op.path.slice(0, op.path.length - 1));
+      const targetNumChildren = (targetNode.children as any).length;
+      const pickups = [];
+      const drops = [];
+      for (let i = 0; i < node.children.length; i++) {
+        pickups.push([i, { p: i }]);
+        drops.push([targetNumChildren + i, { d: i }]);
       }
-      shareOps.push(json1.removeOp(fromBase.slice(0, fromBase.length - 1)));
+      let moveOps = (fromBase as any).concat(
+        ['children', [op.path[op.path.length - 1], 'children', pickups], [op.position, 'children', drops]],
+      );
+      shareOps.push(moveOps, json1.removeOp(this.entryPath(op.path)));
       return;
     }
   }
