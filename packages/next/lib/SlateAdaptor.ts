@@ -1,13 +1,13 @@
 import { json1 } from 'ot-slate';
-import { Node, Text } from 'slate';
+import { Node, Text, Editor } from 'slate';
 
 type sharePath = (string | number)[];
 
 /**
  * Transforms slate ops to sharedb ops
  */
-export default class SlateAdapter {
-  constructor(public editor, public doc, public prefix) { }
+export default class SlateAdaptor {
+  constructor(public editor: Editor, public doc, public prefix) { }
 
   handle(op) {
     console.log("Op", op);
