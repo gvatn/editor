@@ -38,6 +38,9 @@ export default class SlateAdaptor {
           const docData = JSON.parse(JSON.stringify(this.doc.data));
           console.log("Submitting", shareOp, docData);
           this.doc.submitOp(shareOp, null, (err) => {
+            const shareDoc = JSON.parse(JSON.stringify(this.doc.data.doc));
+            const slateDoc = JSON.parse(JSON.stringify(this.editor.children));
+            this.verifyDoc(shareDoc, slateDoc);
             if (err) {
               console.log("submitOp callback", err, shareOp);
               debugger;
@@ -47,6 +50,54 @@ export default class SlateAdaptor {
       }
     }
   }
+
+  verifyDoc(shareDoc, slateDoc) {
+    if (!this.verifyElement(shareDoc, slateDoc)) {
+      // todo: To increase robustness, perhaps we could take a diff
+      // here and apply it to sharedb.
+      console.log("Verify failed", shareDoc, slateDoc);
+      throw "Verify failed";
+    } else {
+      console.log("Verified");
+    }
+  }
+
+  verifyElement(share, slate) {
+    if (Array.isArray(share)) {
+      if (!Array.isArray(slate)) {
+        return false;
+      }
+      if (share.length !== slate.length) {
+        return false;
+      }
+      for (let i = 0; i < share.length; i++) {
+        if (!this.verifyElement(share[i], slate[i])) {
+          return false;
+        }
+      }
+      return true;
+    }
+    if (typeof share === 'object') {
+      if (typeof slate !== 'object') {
+        return false;
+      }
+      for (let key in share) {
+        if (!slate.hasOwnProperty(key)) {
+          return false;
+        }
+        if (!this.verifyElement(share[key], slate[key])) {
+          return false;
+        }
+      }
+      return true;
+    }
+    // Primitive
+    if (share !== slate) {
+      return false;
+    }
+    return true;
+  }
+
 
   insertText(op, shareOps) {
     shareOps.push(json1.editOp(this.jsonTextPath(op.path), 'text-unicode', [op.offset, op.text]));
@@ -160,6 +211,7 @@ export default class SlateAdaptor {
     // Determine type
     const node = Node.get(this.editor, op.path);
     if (Text.isText(node)) {
+      console.log("Merging text", node);
       // In the case of text, assuming previous child is another text node,
       // append this text
       const fromBase = this.childrenPath(op.path.slice(0, op.path.length - 1));
@@ -171,9 +223,14 @@ export default class SlateAdaptor {
       );
       return;
     } else {
+      console.log("Merging node", node);
       // Merge children of this node with the previous node's children from
       // the given position
-      const targetPath = op.path.slice(0, op.path.length - 1).concat([op.position]);
+      // todo: I used op.position here initially, but another case gave the
+      // same index as the from node, so now going by the docs saying merging
+      // is onto the previous node
+      const targetIndex = op.path[op.path.length - 1] - 1;
+      const targetPath = op.path.slice(0, op.path.length - 1).concat([targetIndex]);
       const targetNode = Node.get(this.editor, targetPath);
       const fromBase = this.entryPath(op.path.slice(0, op.path.length - 1));
       const targetNumChildren = (targetNode.children as any).length;
@@ -184,7 +241,7 @@ export default class SlateAdaptor {
         drops.push([targetNumChildren + i, { d: i }]);
       }
       let moveOps = (fromBase as any).concat(
-        ['children', [op.path[op.path.length - 1], 'children', pickups], [op.position, 'children', drops]],
+        ['children', [op.path[op.path.length - 1], 'children', pickups], [targetIndex, 'children', drops]],
       );
       shareOps.push(moveOps, json1.removeOp(this.entryPath(op.path)));
       return;
