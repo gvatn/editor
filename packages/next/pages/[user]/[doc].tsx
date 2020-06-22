@@ -10,7 +10,7 @@ import SlateAdaptor from '../../lib/SlateAdaptor';
 import { Transform } from 'stream';
 import { unindent, indent, attemptAddItem } from '../../lib/editor/List';
 
-
+import CodeEditor from '../../components/CodeEditor';
 
 const withCustom = (prefix, doc, editor) => {
   const { apply, isElement } = editor;
@@ -76,6 +76,8 @@ function renderElement(props) {
       return <DefaultElement {...props} />;
     case 'block':
       return <Block {...props} />;
+    case 'code':
+      return <CodeEditor {...props} />;
     case 'list':
       return <List {...props} />;
     case 'list_item':
@@ -158,7 +160,7 @@ function Doc({ doc }) {
         case '+': {
           event.preventDefault();
           Transforms.insertNodes(editor, {
-            type: 'block',
+            type: 'code',
             children: [{
               text: ''
             }]
@@ -223,6 +225,13 @@ export default function DocPage() {
       <style jsx global>{`
       ul {
         border-top: 1px solid #eee;
+      }
+      .code-editor {
+        padding: 0.4rem;
+        background: #fafafa;
+        color: #555;
+        font-family: monospace, monospace;
+        font-size: 0.8rem;
       }
       `}</style>
     </div>
