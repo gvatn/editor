@@ -7,7 +7,32 @@ type sharePath = (string | number)[];
  * Transforms slate ops to sharedb ops
  */
 export default class SlateAdaptor {
-  constructor(public editor: Editor, public doc, public prefix) { }
+  // Reference to onOp callback, used later with removeListener
+  // As the direct callback has the share doc as 'this', we wrap
+  // to get SlateAdaptor as this
+  onOpCb: (op: any, source: boolean) => void;
+
+  constructor(public editor: Editor, public doc, public prefix) {
+    this.onOpCb = (op, source) => {
+      this.onOp(op, source);
+    }
+    doc.on('op', this.onOpCb);
+  }
+
+  onOp(op, source) {
+    // This runs with share doc as 'this'
+    // We want to have a reference to this function to use
+    // it with removeListener below.
+    const shareDoc = JSON.parse(JSON.stringify(this.doc.data[this.prefix]));
+    console.log("On op", op, shareDoc, source);
+    if (source === false) {
+
+    }
+  }
+
+  free() {
+    this.doc.removeListener('op', this.onOpCb);
+  }
 
   handle(op) {
     console.log("Op", op);
@@ -104,7 +129,12 @@ export default class SlateAdaptor {
   }
 
   removeText(op, shareOps) {
-    shareOps.push(json1.editOp(this.jsonTextPath(op.path), 'text-unicode', [op.offset, { d: op.text.length }]));
+    const textLength = op.text.length;
+    if (textLength === 0) {
+      // Slate sends these empty ops
+      return;
+    }
+    shareOps.push(json1.editOp(this.jsonTextPath(op.path), 'text-unicode', [op.offset, { d: textLength }]));
   }
 
   /**
@@ -232,7 +262,7 @@ export default class SlateAdaptor {
       const targetIndex = op.path[op.path.length - 1] - 1;
       const targetPath = op.path.slice(0, op.path.length - 1).concat([targetIndex]);
       const targetNode = Node.get(this.editor, targetPath);
-      const fromBase = this.entryPath(op.path.slice(0, op.path.length - 1));
+      const fromBase = this.childrenPath(op.path.slice(0, op.path.length - 1));
       const targetNumChildren = (targetNode.children as any).length;
       const pickups = [];
       const drops = [];
@@ -241,7 +271,7 @@ export default class SlateAdaptor {
         drops.push([targetNumChildren + i, { d: i }]);
       }
       let moveOps = (fromBase as any).concat(
-        ['children', [op.path[op.path.length - 1], 'children', pickups], [targetIndex, 'children', drops]],
+        [[op.path[op.path.length - 1], 'children', pickups], [targetIndex, 'children', drops]],
       );
       shareOps.push(moveOps, json1.removeOp(this.entryPath(op.path)));
       return;

@@ -21,7 +21,10 @@ const withCustom = (prefix, doc, editor) => {
   };
   editor.isElement = (n: any) => {
     return n.type === 'list' || n.type === 'list_item';
-  }
+  };
+  editor.free = () => {
+    adapter.free();
+  };
   return editor;
 };
 
@@ -126,18 +129,11 @@ function DocTitle({ doc }) {
 }
 
 function Doc({ doc }) {
-  const editor = useMemo<ReactEditor>(() => withCustom("doc", doc, withReact(createEditor())), []);
+  const editor = useMemo<ReactEditor & { free: () => void }>(() => withCustom("doc", doc, withReact(createEditor())), []);
   const [value, setValue] = useState<any>(doc.data.doc);
   useEffect(() => {
-    const onOp = (op, source) => {
-      console.log("On op", doc, op, source);
-      if (source === false) {
-
-      }
-    };
-    doc.on('op', onOp);
     return () => {
-      doc.removeListener('op', onOp);
+      editor.free();
     };
   }, []);
 
