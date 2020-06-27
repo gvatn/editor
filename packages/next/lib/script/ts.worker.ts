@@ -1,7 +1,7 @@
 import ts from 'typescript';
 
 declare var self: DedicatedWorkerGlobalScope;
-export {};
+export { };
 
 const source = `
 const x: number = 1;
@@ -9,7 +9,7 @@ console.log("Testing", x);
 `;
 
 class ScriptSnapshot implements ts.IScriptSnapshot {
-  constructor(public source: string) {}
+  constructor(public source: string) { }
   getText(start: number, end: number): string {
     return this.source.substring(start, end);
   }
@@ -148,10 +148,26 @@ const langHost = new LangHost();
 const langService = ts.createLanguageService(langHost);
 
 const program = langService.getProgram();
+console.log("Program", program);
 
-const t0 = performance.now();
-console.log(ts.transpile(source));
-console.log("Ms", performance.now() - t0);
+function transpileScript(source) {
+  const t0 = performance.now();
+  const transpiled = ts.transpile(source);
+  console.log("Ms", performance.now() - t0);
+  console.log("Transpiled", transpiled);
+  postMessage({
+    type: 'transpiled',
+    transpiled: transpiled
+  });
+}
 
-addEventListener('message', (event) => console.log('Worker received:', event.data));
-postMessage('from Worker');
+function handleMessage(msg) {
+  console.log('Worker received:', msg);
+  switch (msg.data.type) {
+    case 'updateScript':
+      transpileScript(msg.data.script);
+      break;
+  }
+}
+
+addEventListener('message', handleMessage);
