@@ -12,7 +12,7 @@
     "immutable": "^4.0.0-rc.12",
     "mongodb": "^3.5.9",
     "next": "9.4.4",
-    "next-auth": "^2.0.0-beta.71",
+    "next-auth": "^3.3.0",
     "ot-json1": "^0.3",
     "ot-slate": "0.0.1",
     "react": "16.13.1",
